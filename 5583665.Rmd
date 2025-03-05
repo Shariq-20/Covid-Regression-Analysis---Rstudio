@@ -1,0 +1,238 @@
+---
+title: 'Business Statistics Mid-Term Assessment IB94X0 2022-2023 #1'
+author: '5583665'
+output:
+  html_document:
+    toc: yes
+    toc_depth: 3
+---
+
+```{r setup, message=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(emmeans) 
+library(gridExtra)
+options(width=100)
+```
+
+
+---
+
+
+# Dictionary
+
+The below is a dictionary table that contains explanation for all data types used
+
+Variable        | Description  
+----------------|----------------------
+Data.x          | Is the CSV data file read into R studio - with N/As 
+N.A_Check       | Value - number of N/A
+Data            | Is the CSV data file read into R studio - N/As have been omitted from this from the data set
+House_data      | Data regarding number of children in low income homes per borough across all years - contains average, standard deviation, Lowest number of children in low income homes and Highest number of children in low income homes
+Filtered_data   | Data after exclufing - City of London', 'Kensington and Chelsea','Kingston upon Thames', 'Richmond upon Thames', 'Westminster
+Data.Mean_Sd    | Contains information of yearly means and standard deviation from 2014 to 2021
+ymin.           | Lower bound of standard deviation
+ymax.           | Lower bound of standard deviation
+Data.graph      | ggplot visual
+Y.2014          | Filtered data of only 2014
+Y.2021          | Filtered data of only 2021
+m.Year14x21     | Linear model of 2014 and 2021 data
+m.Year14x21_emm | emmean of m.Year14x21
+m.Year14x21.contrast| to contrast data from 2021 to 2014
+
+
+---
+
+
+
+
+# Section 1
+
+
+---
+
+
+
+## Data - Children in low income homes per ward across all years
+
+```{r data table}
+#Pulling data
+
+Data.x <- read_csv('children_low_income_data.csv')
+
+#check for N/As - 33 were found
+
+N.A_Check <- sum(is.na(Data.x))
+
+Data <- Data.x %>% na.omit
+
+# Data regarding number of children in low income homes per borough across all years
+
+House.Data <- Data %>% group_by(`Borough`) %>% summarise(
+  Average = mean(children), 
+  Standard_deviation = sd(children),
+  "Lowest number of children in low income homes" = min(children), 
+  "Highest number of children in low income homes" = max(children))
+
+
+House.Data
+
+
+```
+
+
+## Exclude unusual boroughs
+
+```{r Exclude}
+
+#data filtered out
+
+Filtered_Data<- filter(Data, !(Borough%in%c('City of London', 'Kensington and Chelsea','Kingston upon Thames', 'Richmond upon Thames', 'Westminster')))
+
+summary(Filtered_Data)
+
+```
+
+
+## Visualise data for different years
+
+```{r Visualisation}
+
+# Visualisation that shows the distribution of children in low income households in wards for each year with representation of the mean value and standard deviation for each year.
+
+# first created the mean and standard deviation data
+
+Data.Mean_Sd <- Filtered_Data %>% group_by(year) %>% summarise(Mean = mean(children), Standard_deviation = sd(children))
+
+# Identified Max and Min for standard deviation upper and lower bounds
+
+ymin.<- Data.Mean_Sd$Mean  - Data.Mean_Sd$Standard_deviation
+ymax.<- Data.Mean_Sd$Mean  + Data.Mean_Sd$Standard_deviation
+
+#Plot graph
+
+Data.graph <- ggplot() + 
+  geom_jitter(data = Filtered_Data, mapping=aes(x= factor(year) , y= children, alpha=0.5, colour = year))+
+  geom_point(mapping=aes(x= factor(Data.Mean_Sd$year), y= Data.Mean_Sd$Mean ), color= "red") + 
+  geom_crossbar(aes(x= factor(Data.Mean_Sd$year), y = Data.Mean_Sd$Standard_deviation, ymin=ymin., ymax=ymax.), col='red')+ 
+  labs(x="Years", y="Children in low-income households", title ="Distribution of children in low-income households by year") + scale_alpha(guide = 'none')
+
+Data.graph
+
+
+```
+
+
+
+## T.test and Estimation -  using Null Hypothesis Significance Testing, and the Estimation approach
+
+```{r Test/Estimation}
+
+#T.test
+
+Y.2014 <- Filtered_Data %>% filter(year == 2014)
+
+Y.2021 <- Filtered_Data %>% filter(year == 2021)
+  
+t.test(Y.2021$children, Y.2014$children)
+
+#Estimation
+
+Year14x21.data <- Filtered_Data %>% filter(year %in% c(2021,2014))
+
+m.Year14x21 <- lm(children~year, data=Year14x21.data)
+
+( m.Year14x21_emm <- emmeans(m.Year14x21, ~ year))
+
+( m.Year14x21.contrast <- confint(pairs(m.Year14x21_emm, reverse = TRUE)) )
+
+# Graph
+
+grid.arrange(
+	ggplot(summary(m.Year14x21_emm), aes(x= year, y=emmean, ymin=lower.CL, ymax=upper.CL)) + 
+		geom_point() + geom_linerange() + 
+		labs(y="Children in low income homes", x="Year", subtitle="Error bars are 95% CIs", title="Increase of Children in low income homes"), 
+	ggplot(m.Year14x21.contrast, aes(x=contrast, y=estimate, ymin=lower.CL, ymax=upper.CL)) + 
+		geom_point() + geom_linerange() + 
+		labs(y="Children in low income homes", x="Contrast", subtitle="Error bars are 95% CIs", title="Children in low income homes") +
+		geom_hline(yintercept=0, lty=2),
+	ncol=2
+)
+
+
+
+```
+
+
+---
+
+# Section 2
+
+---
+
+
+### Introduction
+
+This report will present findings by analysing data regarding children living in low-income households in London. We will be looking at data spanning across 8 years (from 2014 to 2021). The data consists of the counts for the number of children living in London's boroughs respective sub-divided wards.
+
+
+### Data - Children in low income homes per ward across all years
+
+Identifying individual borough's average, standard deviation, Lowest number of children in low income homes and Highest number of children in low income homes allows comparing data between boroughs and identifying key issues and trends.
+
+Boroughs such as Barking & Dagenham (987), Newham (1213) and Tower Hamlets (1035) have the highest averages of children in low income homes with figures close to 1000 whereas in comparison City of London (26), Kensington and Chelsea (147), Richmond upon Thames (163) have the lowest averages out of the whole dataset.
+
+These figures correlate well with the Highest (max) and lowest (min) number of children in low income homes. Data from City of London(156), Kensington and Chelsea (557), Richmond upon Thames (507) Highest number of children in low income homes have figures similar to Barking and Dagenham (551) and Tower Hamlets (218) lowest number of children in low income homes have figures.
+
+However there are boroughs with large discrepancies between their Highest and Lowest children in low income homes, depicted through their standard deviation. For example Enfield's standard deviation is 408 which is without fault representative as the borough's lowest ranges from 193 where as their highest ranges to 1895. 
+
+
+
+### Exclude unusual boroughs
+
+The boroughs excluded include City of London; Kensington and Chelsea; Kingston upon Thames; Richmond upon Thames; Westminster.
+
+
+### Visualise data for different years
+
+```{r , echo = FALSE}
+
+Data.graph
+```
+
+As can be seen from the graph above, the number of children in low-income homes saw a steady increase through years 2014 up until 2019 before starting a gradual decent till 2021. 
+
+The data points were initially concentrated closer to the mean (red dot) with lower levels of standard deviation as can be seen by the thick red line, overall proportions of the standard deviation box and maximum/minimum regions the box (maximum is the upper section and minimum is the lower section). It stays fairly concentrated and stable from 2014 to 2016 with similar data means (in the range of 528 to 565) and similar standard deviation (in the range of 291 to 317). 
+
+2017 is where the first noticeable discrepancy and higher dispersion of data is seen with mean surging to 655, standard deviation to 369 and standard deviation box proportions increasing due to maximum deviation increasing and minimum threshold rising.The dispersion can also be visibly see with outlier close to the 2000 mark. The rate of growth of the dependency continues till 2019 where the data reaches over all peak mean of 727 and standard deviation of 412 before seeing a decline from 2020 with the mean dropping to 660. The trend following through to 2021 at a mean of 604.
+
+
+
+### T-test ( Null Hypothesis Significance Testing) - compare 2021 to 2014
+
+The mean number of children in low-income homes per ward for 2021 was 604; where as the mean number of in children low-income homes per ward for 2014 was 528. 
+
+The results of the t-test reveal a statistically significant difference in the mean number of children in low-income households between 2014 and 2021, Welch t(1095)= 4.0215, p<.0001. Indicating a notable increase observed with a difference of 76 children between years 2021 compared to 2014.
+
+
+### Estimation
+
+```{r, echo = FALSE}
+grid.arrange(
+	ggplot(summary(m.Year14x21_emm), aes(x= year, y=emmean, ymin=lower.CL, ymax=upper.CL)) + 
+		geom_point() + geom_linerange() + 
+		labs(y="Children in low income homes", x="Year", subtitle="Error bars are 95% CIs", title="Increase of Children in low income homes"), 
+	ggplot(m.Year14x21.contrast, aes(x=contrast, y=estimate, ymin=lower.CL, ymax=upper.CL)) + 
+		geom_point() + geom_linerange() + 
+		labs(y="Children in low income homes", x="Contrast", subtitle="Error bars are 95% CIs", title="Children in low income homes") +
+		geom_hline(yintercept=0, lty=2),
+	ncol=2
+)
+```
+
+The mean number of children in low-income homes per ward for 2021 is 604, 95% CI [578--630]. The mean number of children in low-income homes per ward for 2014 95% CI [502--554]. A mean increase observed of 76 children 95% CI [38.7--112] lower in 2014 compared to 2021.
+
+
+
+
+---
