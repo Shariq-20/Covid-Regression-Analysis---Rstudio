@@ -37,7 +37,7 @@ Data.graph      | ggplot visual
 Y.2014          | Filtered data of only 2014
 Y.2021          | Filtered data of only 2021
 m.Year14x21     | Linear model of 2014 and 2021 data
-m.Year14x21_emm | emmean of m.Year14x21
+m.Year14x21_emm | emmean of m.Year14x21 
 m.Year14x21.contrast| to contrast data from 2021 to 2014
 
 
